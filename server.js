@@ -45,12 +45,10 @@ const app = express();
 // credentials: true is required for httpOnly
 // cookies (refresh token) to be sent.
 // ─────────────────────────────────────────
-app.use(
-  cors({
-    origin: CLIENT_ORIGIN,
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: process.env.CORS_ORIGIN,
+  credentials: true,
+}));
 
 // ─────────────────────────────────────────
 // Body parsers

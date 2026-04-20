@@ -68,12 +68,24 @@ const generateRefreshToken = (user) => {
 // sameSite   → CSRF protection
 // maxAge     → 7 days in milliseconds
 // ─────────────────────────────────────────
+
+// Local
+// const refreshTokenCookieOptions = {
+//   httpOnly: true,
+//   secure: NODE_ENV === "production",
+//   sameSite: NODE_ENV === "production" ? "strict" : "lax",
+//   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+// };
+
+//Production
 const refreshTokenCookieOptions = {
   httpOnly: true,
-  secure: NODE_ENV === "production",
-  sameSite: NODE_ENV === "production" ? "strict" : "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  secure:  process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  maxAge: 1 * 24 * 60 * 60 * 1000, // 7 days
 };
+
+
 
 // ─────────────────────────────────────────
 // @route   POST /api/auth/login
