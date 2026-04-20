@@ -12,6 +12,7 @@ import morgan from "morgan";
 import connectDB from "./config/db.js";
 import { PORT, NODE_ENV, CLIENT_ORIGIN, COOKIE_SECRET } from "./config/env.js";
 
+
 // ─────────────────────────────────────────
 // Route imports
 // Add new route files here as phases complete
@@ -46,9 +47,15 @@ const app = express();
 // cookies (refresh token) to be sent.
 // ─────────────────────────────────────────
 app.use(cors({
-  origin: process.env.CORS_ORIGIN,
+  origin: "https://ohs-crm-client.vercel.app",
   credentials: true,
 }));
+
+// IMPORTANT: Handle preflight for ALL routes explicitly
+app.options('*', cors());
+
+
+
 
 // ─────────────────────────────────────────
 // Body parsers
