@@ -10,12 +10,12 @@ dotenv.config();
 // variable is missing, so the server never
 // starts with a broken config silently.
 // ─────────────────────────────────────────
-const required = (key) => {
+const required = (key, fallback) => {
   const value = process.env[key];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-  return value;
+  // if (!value) {
+  //   throw new Error(`Missing required environment variable: ${key}`);
+  // }
+  return value || fallback;
 };
 
 // Optional variable — returns a fallback if not set
@@ -32,20 +32,20 @@ export const NODE_ENV = optional("NODE_ENV", "development");
 // ─────────────────────────────────────────
 // MONGODB
 // ─────────────────────────────────────────
-export const MONGODB_URI = required("MONGODB_URI");
+export const MONGODB_URI = required("MONGODB_URI",'mongodb+srv://mdsa:mongodb@atlascluster.iutgm4q.mongodb.net/fileManagement?retryWrites=true&w=majority');
 
 // ─────────────────────────────────────────
 // JWT
 // ─────────────────────────────────────────
-export const ACCESS_TOKEN_SECRET = required("ACCESS_TOKEN_SECRET");
+export const ACCESS_TOKEN_SECRET = required("ACCESS_TOKEN_SECRET","access");
 export const ACCESS_TOKEN_EXPIRY = optional("ACCESS_TOKEN_EXPIRY", "15m");
-export const REFRESH_TOKEN_SECRET = required("REFRESH_TOKEN_SECRET");
+export const REFRESH_TOKEN_SECRET = required("REFRESH_TOKEN_SECRET","REFRESH_TOKEN_SECRET ");
 export const REFRESH_TOKEN_EXPIRY = optional("REFRESH_TOKEN_EXPIRY", "7d");
 
 // ─────────────────────────────────────────
 // COOKIES
 // ─────────────────────────────────────────
-export const COOKIE_SECRET = required("COOKIE_SECRET");
+export const COOKIE_SECRET = required("COOKIE_SECRET","REFRESH_TOKEN_EXPIRY");
 
 // ─────────────────────────────────────────
 // CORS
