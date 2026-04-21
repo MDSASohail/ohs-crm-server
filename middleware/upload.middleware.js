@@ -1,75 +1,54 @@
 // middleware/upload.middleware.js
-// Configures Multer for local disk storage.
+// Multer configured with Cloudinary storage.
+// Files go directly to Cloudinary — nothing is
+// saved to disk. Works identically in development
+// and production.
 //
-// During development, files are saved to the
-// /uploads folder in the server root.
-// The /uploads route is served as static files
-// from server.js so files are accessible via:
-// http://localhost:5000/uploads/filename.ext
-//
-// When switching to Cloudinary or S3:
-// — Replace diskStorage with the appropriate
-//   Multer storage engine
-// — Update fileUrl generation in document.controller.js
-// — Nothing else in the codebase needs to change
-//
-// File size limit is read from env (MAX_FILE_SIZE_MB)
-// so it can be changed from Settings without redeployment.
-//
-// Allowed file types:
-// — PDF, Word documents, text files, images
-// — Controlled by the fileFilter function below
+// Cloudinary organises files into folders per tenant
+// so each business's files are separated.
+// The public_id and secure_url are returned in req.file
+// and used by document.controller.js to build the DB record.
 
 import multer from "multer";
-import path from "path";
-import fs from "fs";
-import { MAX_FILE_SIZE_MB, UPLOAD_DEST } from "../config/env.js";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import cloudinary from "../config/cloudinary.js";
+import { MAX_FILE_SIZE_MB } from "../config/env.js";
 import { ApiError } from "../utils/ApiError.js";
 
 // ─────────────────────────────────────────
-// Ensure the uploads directory exists
-// Creates it automatically if it doesn't —
-// prevents Multer from crashing on first upload
+// Cloudinary storage engine
+// Each file is stored under:
+// ohs-crm/<tenantId>/<timestamp>-<random>
+// This keeps files organised per tenant
 // ─────────────────────────────────────────
-if (!fs.existsSync(UPLOAD_DEST)) {
-  fs.mkdirSync(UPLOAD_DEST, { recursive: true });
-}
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: async (req, file) => {
+    // Determine resource type based on mimetype
+    // Cloudinary needs this to handle non-image files
+    const isImage = file.mimetype.startsWith("image/");
+    const isPdf   = file.mimetype === "application/pdf";
 
-// ─────────────────────────────────────────
-// Disk storage configuration
-// Files are saved with a unique name to prevent
-// collisions — timestamp + random number + original extension
-// ─────────────────────────────────────────
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOAD_DEST);
-  },
-
-  filename: (req, file, cb) => {
-    // Build a unique filename:
-    // timestamp-randomNumber.originalExtension
-    // e.g. 1718000000000-483920.pdf
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${uniqueSuffix}${ext}`);
+    return {
+      folder: `ohs-crm/${req.tenantId}`,
+      resource_type: isImage ? "image" : "raw",
+      // Use timestamp + random for unique public_id
+      public_id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`,
+      // For images, allow transformations
+      ...(isImage && { allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"] }),
+    };
   },
 });
 
 // ─────────────────────────────────────────
-// File type filter
-// Only allow safe, expected file types.
-// Rejects anything else with a clear error.
+// File type filter — same as before
 // ─────────────────────────────────────────
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = [
-    // PDF
     "application/pdf",
-    // Word documents
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    // Text
     "text/plain",
-    // Images
     "image/jpeg",
     "image/png",
     "image/gif",
@@ -77,71 +56,52 @@ const fileFilter = (req, file, cb) => {
   ];
 
   if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true); // Accept file
+    cb(null, true);
   } else {
     cb(
       new ApiError(
         415,
-        "Unsupported file type — allowed types: PDF, Word, text, JPEG, PNG, GIF, WEBP"
+        "Unsupported file type — allowed: PDF, Word, text, JPEG, PNG, GIF, WEBP"
       ),
-      false // Reject file
+      false
     );
   }
 };
 
 // ─────────────────────────────────────────
-// Multer instance
-// MAX_FILE_SIZE_MB comes from .env and can
-// be changed in Settings later
+// Multer instance with Cloudinary storage
 // ─────────────────────────────────────────
 const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: MAX_FILE_SIZE_MB * 1024 * 1024, // Convert MB to bytes
+    fileSize: MAX_FILE_SIZE_MB * 1024 * 1024,
   },
 });
 
-// ─────────────────────────────────────────
-// Export named middleware functions
-// upload.single("file") — expects one file
-//   with field name "file" in the form data
-// ─────────────────────────────────────────
 export const uploadSingle = upload.single("file");
 
 // ─────────────────────────────────────────
-// Multer error handler wrapper
-// Multer errors do not go through asyncHandler
-// so we need to catch them manually and convert
-// them to ApiError format for the global handler
+// Error handler wrapper — same as before
 // ─────────────────────────────────────────
 export const handleUpload = (req, res, next) => {
   uploadSingle(req, res, (err) => {
     if (!err) return next();
 
-    // Multer file size error
     if (err.code === "LIMIT_FILE_SIZE") {
       return next(
-        new ApiError(
-          413,
-          `File too large — maximum allowed size is ${MAX_FILE_SIZE_MB}MB`
-        )
+        new ApiError(413, `File too large — maximum allowed size is ${MAX_FILE_SIZE_MB}MB`)
       );
     }
 
-    // Multer unexpected field error
     if (err.code === "LIMIT_UNEXPECTED_FILE") {
       return next(
         new ApiError(400, "Unexpected field — use field name 'file' for upload")
       );
     }
 
-    // ApiError thrown by fileFilter (wrong file type)
-    if (err instanceof ApiError) {
-      return next(err);
-    }
+    if (err instanceof ApiError) return next(err);
 
-    // Any other Multer error
     return next(new ApiError(400, err.message || "File upload failed"));
   });
 };

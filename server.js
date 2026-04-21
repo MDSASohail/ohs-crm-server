@@ -47,7 +47,7 @@ const app = express();
 // cookies (refresh token) to be sent.
 // ─────────────────────────────────────────
 app.use(cors({
-  origin: "https://ohs-crm-client.vercel.app",
+  origin: process.env.CLIENT_ORIGIN,
   credentials: true,
 }));
 

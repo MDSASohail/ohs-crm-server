@@ -27,6 +27,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { logActivity } from "../utils/activityLogger.js";
 import { UPLOAD_DEST } from "../config/env.js";
+import cloudinary from "../config/cloudinary.js";
 
 // ─────────────────────────────────────────
 // Helper — build the public URL for a locally
@@ -87,19 +88,32 @@ const uploadDocument = asyncHandler(async (req, res) => {
   }
 
   // Build the public URL for this file
-  const fileUrl = buildFileUrl(req, req.file.filename);
+  // const fileUrl = buildFileUrl(req, req.file.filename);
 
   // Create document record in DB
+  // const document = await Document.create({
+  //   tenantId: req.tenantId,
+  //   candidateId,
+  //   name: (name || req.body.name).trim(),
+  //   fileUrl,
+  //   fileType: req.file.mimetype,
+  //   fileSize: req.file.size,
+  //   // cloudinaryPublicId is null for local storage
+  //   cloudinaryPublicId: null,
+  //   storageProvider: "local",
+  //   uploadedBy: req.user._id,
+  // });
+
+  // Cloudinary returns secure_url and public_id directly on req.file
   const document = await Document.create({
     tenantId: req.tenantId,
     candidateId,
     name: (name || req.body.name).trim(),
-    fileUrl,
+    fileUrl: req.file.path,           // Cloudinary secure_url
     fileType: req.file.mimetype,
     fileSize: req.file.size,
-    // cloudinaryPublicId is null for local storage
-    cloudinaryPublicId: null,
-    storageProvider: "local",
+    cloudinaryPublicId: req.file.filename, // Cloudinary public_id
+    storageProvider: "cloudinary",
     uploadedBy: req.user._id,
   });
 
@@ -315,16 +329,29 @@ const permanentDeleteDocument = asyncHandler(async (req, res) => {
   }
 
   // Delete physical file from disk if it exists
-  if (document.storageProvider === "local") {
-    const filename = path.basename(document.fileUrl);
-    const filePath = path.join(UPLOAD_DEST, filename);
+  // if (document.storageProvider === "local") {
+  //   const filename = path.basename(document.fileUrl);
+  //   const filePath = path.join(UPLOAD_DEST, filename);
 
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  }
+  //   if (fs.existsSync(filePath)) {
+  //     fs.unlinkSync(filePath);
+  //   }
+  // }
   // When using Cloudinary/S3, call the provider's
   // delete API here using cloudinaryPublicId
+  // Delete from Cloudinary if stored there
+  if (document.storageProvider === "cloudinary" && document.cloudinaryPublicId) {
+    try {
+      // Determine resource type — non-images were uploaded as "raw"
+      const isImage = document.fileType?.startsWith("image/");
+      await cloudinary.uploader.destroy(document.cloudinaryPublicId, {
+        resource_type: isImage ? "image" : "raw",
+      });
+    } catch (cloudinaryErr) {
+      // Log but don't crash — DB record will still be deleted
+      console.error("Cloudinary delete failed:", cloudinaryErr.message);
+    }
+  }
 
   // Remove DB record
   await Document.findByIdAndDelete(docId);
