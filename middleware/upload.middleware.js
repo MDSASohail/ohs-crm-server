@@ -20,7 +20,7 @@ const storage = new CloudinaryStorage({
       folder: `ohs-crm/${req.tenantId}`,
       // Images and PDFs → "image" resource type (viewable)
       // Word, Excel, text → "raw" (downloadable)
-      resource_type: image,
+      resource_type: "image",
       public_id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`,
     };
   },
