@@ -31,6 +31,8 @@ import reminderRoutes from "./routes/reminder.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import reportRoutes from "./routes/report.routes.js";
 import activityLogRoutes from "./routes/activitylog.routes.js";
+import requiredDocTemplateRoutes from './routes/requiredDocTemplate.routes.js';
+import candidateRequiredDocRoutes from './routes/candidateRequiredDoc.routes.js';
 
 
 // ─────────────────────────────────────────
@@ -113,6 +115,8 @@ app.use("/api/reminders", reminderRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/activity-logs", activityLogRoutes);
+app.use('/api/required-doc-templates', requiredDocTemplateRoutes);
+app.use('/api/candidate-required-docs', candidateRequiredDocRoutes);
 
 // Phase 4  — app.use("/api/tenants", tenantRoutes);
 // Phase 5  — app.use("/api/users", userRoutes);
@@ -126,6 +130,7 @@ app.use("/api/activity-logs", activityLogRoutes);
 // Phase 13 — app.use("/api/reminders", reminderRoutes);
 // Phase 14 — app.use("/api/dashboard", dashboardRoutes);
 // Phase 15 — app.use("/api/reports", reportRoutes);
+
 
 // ─────────────────────────────────────────
 // 404 handler

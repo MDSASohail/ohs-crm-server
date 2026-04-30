@@ -32,6 +32,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { logActivity } from "../utils/activityLogger.js";
+import { RequiredDocumentTemplate } from '../models/RequiredDocumentTemplate.model.js';
+import { CandidateRequiredDoc } from '../models/CandidateRequiredDoc.model.js';
 
 // ─────────────────────────────────────────
 // Helper — recalculate avgResultDays for a
@@ -191,6 +193,45 @@ const createEnrollment = asyncHandler(async (req, res) => {
     { path: "createdBy", select: "name email" },
   ]);
 
+  // ── Snapshot required document template slots ──────────────────────────
+  // Mirror of checklist snapshot — copy current template slots into
+  // CandidateRequiredDoc records so they are independent going forward
+  try {
+    const reqDocTemplate = await RequiredDocumentTemplate.findOne({
+      tenantId: req.tenantId,
+      courseId: courseId,
+      isDeleted: false,
+    });
+
+    console.log("Requesting reqTem", reqDocTemplate, req.tenantId, courseId);
+    console.log("Enrollment", enrollment);
+    
+
+    if (reqDocTemplate && reqDocTemplate.slots.length > 0) {
+      const docRecords = reqDocTemplate.slots.map((slot) => ({
+        tenantId: req.tenantId,
+        candidateId: enrollment.candidateId._id,
+        enrollmentId:enrollment._id,
+        courseId: courseId,
+        slotId: slot._id,
+        slotLabel: slot.label,
+        slotHelperText: slot.helperText || '',
+        isRequired: slot.isRequired,
+        order: slot.order,
+        files: [],
+      }));
+
+      console.log("Docs", docRecords)
+
+      await CandidateRequiredDoc.insertMany(docRecords);
+    }
+  } catch (err) {
+    // Non-fatal — enrollment is already created
+    // Log the error but do not fail the request
+    console.error('Failed to snapshot required doc template:', err.message);
+  }
+  // ── End snapshot ────────────────────────────────────────────────────────
+
   await logActivity({
     tenantId: req.tenantId,
     userId: req.user._id,
@@ -345,6 +386,8 @@ const updateEnrollment = asyncHandler(async (req, res) => {
     instituteId,
   } = req.body;
 
+  console.log("Body", req.body)
+
   const enrollment = await Enrollment.findOne({
     _id: req.params.id,
     tenantId: req.tenantId,
@@ -362,9 +405,10 @@ const updateEnrollment = asyncHandler(async (req, res) => {
 
   if (status !== undefined) {
     const validStatuses = [
-      "enquiry", "documents_pending", "admitted", "learning",
-      "exam", "awaiting_result", "passed", "failed", "completed",
+      "enquiry", "documents_collected", "document_verified", "admission",
+      "lms_completed", "hall_ticket_received", "credentials_received", "ig1_submitted", "ig2_submitted", "interview_completed", "result", "certificate_sent", "certificate_received",
     ];
+
     if (!validStatuses.includes(status)) {
       throw new ApiError(400, `Invalid status: ${status}`);
     }

@@ -194,19 +194,19 @@ const enrollmentSchema = new mongoose.Schema(
     // learning → exam → awaiting_result →
     // passed / failed → completed
     // ─────────────────────────────────────────
+    // enum: [
+      //   "enquiry",
+      //   "documents_pending",
+      //   "admitted",
+      //   "learning",
+      //   "exam",
+      //   "awaiting_result",
+      //   "passed",
+      //   "failed",
+      //   "completed",
+      // ],
     status: {
       type: String,
-      enum: [
-        "enquiry",
-        "documents_pending",
-        "admitted",
-        "learning",
-        "exam",
-        "awaiting_result",
-        "passed",
-        "failed",
-        "completed",
-      ],
       default: "enquiry",
     },
 

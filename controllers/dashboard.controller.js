@@ -203,6 +203,8 @@ const getEnrollmentsByMonth = asyncHandler(async (req, res) => {
 const getPassFailRatio = asyncHandler(async (req, res) => {
   const tenantId = req.tenantId;
 
+  
+
   const [byCourse, byInstitute] = await Promise.all([
     // Pass/fail ratio by course
     Enrollment.aggregate([
@@ -210,14 +212,14 @@ const getPassFailRatio = asyncHandler(async (req, res) => {
         $match: {
           tenantId,
           isDeleted: false,
-          result: { $in: ["pass", "fail"] },
+          status: { $in: ["passed", "failed"] },
         },
       },
       {
         $group: {
           _id: {
             courseId: "$courseId",
-            result: "$result",
+            status: "$status",
           },
           count: { $sum: 1 },
         },
@@ -238,9 +240,9 @@ const getPassFailRatio = asyncHandler(async (req, res) => {
           _id: "$_id.courseId",
           courseName: { $first: "$course.name" },
           shortCode: { $first: "$course.shortCode" },
-          results: {
+          status: {
             $push: {
-              result: "$_id.result",
+              status: "$_id.status",
               count: "$count",
             },
           },
@@ -254,14 +256,14 @@ const getPassFailRatio = asyncHandler(async (req, res) => {
         $match: {
           tenantId,
           isDeleted: false,
-          result: { $in: ["pass", "fail"] },
+          status: { $in: ["passed", "failed"] },
         },
       },
       {
         $group: {
           _id: {
             instituteId: "$instituteId",
-            result: "$result",
+            status: "$status",
           },
           count: { $sum: 1 },
         },
@@ -281,9 +283,9 @@ const getPassFailRatio = asyncHandler(async (req, res) => {
         $group: {
           _id: "$_id.instituteId",
           instituteName: { $first: "$institute.name" },
-          results: {
+          status: {
             $push: {
-              result: "$_id.result",
+              status: "$_id.status",
               count: "$count",
             },
           },
@@ -295,13 +297,15 @@ const getPassFailRatio = asyncHandler(async (req, res) => {
   // Normalize results into { pass: N, fail: N } shape
   const normalize = (items) =>
     items.map((item) => {
-      const pass = item.results.find((r) => r.result === "pass")?.count || 0;
-      const fail = item.results.find((r) => r.result === "fail")?.count || 0;
+      const pass = item.status.find((r) => r.status === "passed")?.count || 0;
+      const fail = item.status.find((r) => r.status === "failed")?.count || 0;
       const total = pass + fail;
       const passRate = total > 0 ? Math.round((pass / total) * 100) : 0;
       return { ...item, pass, fail, total, passRate, results: undefined };
     });
-
+  console.log("Nor", normalize);
+  console.log("ByCourse", byCourse)
+  console.log("ByIns", byInstitute)
   return res.status(200).json(
     new ApiResponse(
       200,
