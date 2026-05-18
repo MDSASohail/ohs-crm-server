@@ -33,6 +33,7 @@ import reportRoutes from "./routes/report.routes.js";
 import activityLogRoutes from "./routes/activitylog.routes.js";
 import requiredDocTemplateRoutes from './routes/requiredDocTemplate.routes.js';
 import candidateRequiredDocRoutes from './routes/candidateRequiredDoc.routes.js';
+import vaultDocumentRoutes from './routes/vaultDocument.routes.js';
 
 
 // ─────────────────────────────────────────
@@ -117,6 +118,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/activity-logs", activityLogRoutes);
 app.use('/api/required-doc-templates', requiredDocTemplateRoutes);
 app.use('/api/candidate-required-docs', candidateRequiredDocRoutes);
+app.use('/api/vault-documents', vaultDocumentRoutes);
 
 // Phase 4  — app.use("/api/tenants", tenantRoutes);
 // Phase 5  — app.use("/api/users", userRoutes);

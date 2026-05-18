@@ -92,3 +92,48 @@ export const handleUpload = (req, res, next) => {
     return next(new ApiError(400, err.message || "File upload failed"));
   });
 };
+
+// ─── Vault Document Upload ────────────────────────────────────────────────────
+
+const vaultCloudinaryStorage = new CloudinaryStorage({
+  cloudinary,
+  params: async (req, file) => {
+    const isImage = file.mimetype.startsWith('image/');
+    const isPdf   = file.mimetype === 'application/pdf';
+
+    return {
+      folder: `ohs-crm/${req.tenantId}/vault`,
+      resource_type: isImage || isPdf ? 'image' : 'raw',
+      public_id: `vault-${Date.now()}-${Math.round(Math.random() * 1e6)}`,
+    };
+  },
+});
+
+const vaultFileFilter = (req, file, cb) => {
+  const allowed = [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  ];
+  if (allowed.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new ApiError(415, 'File type not allowed. Allowed: PDF, images, Word, Excel, PowerPoint'),
+      false
+    );
+  }
+};
+
+export const vaultUpload = multer({
+  storage: vaultCloudinaryStorage,
+  fileFilter: vaultFileFilter,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB max
+});
